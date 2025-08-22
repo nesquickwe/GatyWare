@@ -1,3 +1,103 @@
+--// LocalScript for "GatyWare" (smaller, darker purple, animated with shine)
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+
+-- Remove old gui if it exists
+if CoreGui:FindFirstChild("GatyWareUI") then
+    CoreGui.GatyWareUI:Destroy()
+end
+
+-- Main ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "GatyWareUI"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = CoreGui
+
+-- Container Frame (top center, lowered slightly)
+local container = Instance.new("Frame")
+container.Size = UDim2.new(1, 0, 0, 80) -- smaller height
+container.Position = UDim2.new(0, 0, 0, 100)
+container.BackgroundTransparency = 1
+container.Parent = screenGui
+
+-- TextLabel
+local text = Instance.new("TextLabel")
+text.Size = UDim2.new(0, 500, 1, 0) -- smaller width
+text.Position = UDim2.new(0.5, -250, 0, 0) -- recentered
+text.BackgroundTransparency = 1
+text.Text = "GatyWare"
+text.TextScaled = true
+text.Font = Enum.Font.GothamBlack
+text.TextTransparency = 0
+text.TextColor3 = Color3.fromRGB(160, 0, 200) -- darker neon purple base
+text.Parent = container
+
+-- Animated purple gradient
+local gradient = Instance.new("UIGradient")
+gradient.Rotation = 0
+gradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 0, 150)), -- dark violet
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(180, 0, 255)), -- neon purple
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 0, 120)) -- deep purple
+}
+gradient.Parent = text
+
+-- White shine reflection gradient
+local shine = Instance.new("UIGradient")
+shine.Rotation = 0
+shine.Transparency = NumberSequence.new{
+    NumberSequenceKeypoint.new(0, 1),
+    NumberSequenceKeypoint.new(0.45, 1),
+    NumberSequenceKeypoint.new(0.5, 0),   -- shine visible
+    NumberSequenceKeypoint.new(0.55, 1),
+    NumberSequenceKeypoint.new(1, 1)
+}
+shine.Color = ColorSequence.new(Color3.new(1, 1, 1))
+shine.Parent = text
+
+-- Subtle glow with stroke
+local stroke = Instance.new("UIStroke")
+stroke.Thickness = 2 -- thinner since text is smaller
+stroke.Color = Color3.fromRGB(200, 0, 255) -- glowing purple edge
+stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Outside
+stroke.Parent = text
+
+-- Animate purple gradient rotation
+task.spawn(function()
+    while true do
+        for i = 0, 360, 1 do
+            gradient.Rotation = i
+            task.wait(0.02)
+        end
+    end
+end)
+
+-- Animate white shine sweep
+task.spawn(function()
+    while true do
+        shine.Offset = Vector2.new(-1, 0)
+        local tween = TweenService:Create(
+            shine,
+            TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+            {Offset = Vector2.new(1, 0)}
+        )
+        tween:Play()
+        tween.Completed:Wait()
+        task.wait(0.5) -- shorter pause for frequent shine
+    end
+end)
+
+-- Prevent GUI removal
+screenGui.AncestryChanged:Connect(function(_, parent)
+    if not parent then
+        screenGui.Parent = CoreGui
+    end
+end)
+
+
+
 --GatyWare
         LocalPlayer = game:GetService("Players").LocalPlayer
 
