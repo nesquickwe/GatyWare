@@ -1,4 +1,4 @@
--- GatyWare Loader ik its ass  dont judge
+-- GatyWare Loader
 local players = game:GetService("Players")
 local run_service = game:GetService("RunService")
 local user_input_service = game:GetService("UserInputService")
@@ -68,13 +68,13 @@ task.spawn(function()
 end)
 
 local games = {
-    { name = "Phantom Forces", link = "https://raw.githubusercontent.com/dementiaenjoyer/homohack/refs/heads/main/pf_lite_rewrite_demo"},
-    { name = "Bad Business", link = "https://raw.githubusercontent.com/dementiaenjoyer/homohack/main/bad_business.lua" },
-    { name = "Fisch", link = "https://raw.githubusercontent.com/dementiaenjoyer/homohack/refs/heads/main/fisch.lua"},
+    { name = "Phantom Forces", link = "https://raw.githubusercontent.com/nesquickwe/GatyWare/refs/heads/main/pf_lite_rewrite_demo"},
+    { name = "Bad Business", link = "https://raw.githubusercontent.com/nesquickwe/GatyWare/refs/heads/main/bad_business.lua" },
+    { name = "Fisch", link = "https://raw.githubusercontent.com/nesquickwe/GatyWare/refs/heads/main/fisch.lua"},
     { name = "Frontlines"},
     { name = "Scorched Earth"},
     { name = "BedWars", link = "https://raw.githubusercontent.com/7GrandDadPGN/VapeV4ForRoblox/main/NewMainScript.lua"},
-    { name = "Arsenal", link = "https://raw.githubusercontent.com/nesquickwe/GatyWare/refs/heads/main/Arsenal.lua"},
+    { name = "Arsenal", link = "https://raw.githubusercontent.com/nesquickwe/GatyWare/refs/heads/main/ArsenalLoader.lua"},
     { name = "Driving Empire", link = "https://raw.githubusercontent.com/nesquickwe/GatyWare/refs/heads/main/DrivingEmpireGatyWare.lua"},
     { name = "Universal Script", link = "https://raw.githubusercontent.com/nesquickwe/GatyWare/main/UniversalGatyWare.lua"},
 }
