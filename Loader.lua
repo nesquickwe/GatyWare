@@ -77,6 +77,7 @@ local games = {
     { name = "Arsenal"},
     { name = "Driving Empire", link = "https://raw.githubusercontent.com/nesquickwe/GatyWare/refs/heads/main/DrivingEmpireGatyWare.lua"},
     { name = "Universal Script", link = "https://raw.githubusercontent.com/nesquickwe/GatyWare/main/UniversalGatyWare.lua"},
+    {name = "Flashpoint". link = "https://raw.githubusercontent.com/nesquickwe/GatyWare/refs/heads/main/Flashpoint.lua"},
 }
 
 local custom_callbacks = {
@@ -117,7 +118,7 @@ local custom_callbacks = {
         -- Fov
         local FOV_Circle = Drawing.new("Circle")
         -- Fov setins
-        FOV_Circle.Color = Color3.fromRGB(255, 255, 255) -- White color
+        FOV_Circle.Color = Color3.fromRGB(160, 0, 200) -- White color
         FOV_Circle.Transparency = 1 -- Fully visible
         FOV_Circle.Radius = 45 -- Adjust size for FOV (45 degrees)
         FOV_Circle.NumSides = 100 -- Smooth circle edges
@@ -193,7 +194,7 @@ local custom_callbacks = {
         local FOV_DEGREES = 22.5
         local FOV_RADIUS = math.cos(math.rad(FOV_DEGREES / 2))
 
-        local BOX_COLOR = Color3.new(1, 0, 0)
+        local BOX_COLOR = Color3.new(160, 0, 200)
         local BOX_TRANSPARENCY = 0.45
         local BOX_SIZE = UDim2.new(4, 0, 6, 0)
         local REFRESH_INTERVAL = 0.4
@@ -355,7 +356,7 @@ local custom_callbacks = {
             end
         end)
 
-        RunService:BindToRenderStep("MaxAimAssist", Enum.RenderPriority.Camera.Value + 1, function()
+        RunService:BindToRenderStep("MAXAIMASSIST", Enum.RenderPriority.Camera.Value + 1, function()
             if not isAiming then return end
 
             if not LocalPlayer.Character or
@@ -393,13 +394,13 @@ local custom_callbacks = {
         Indicator.Size = UDim2.new(0, 200, 0, 25)
         Indicator.Position = UDim2.new(0.5, -100, 0.9, 0)
         Indicator.BackgroundTransparency = 1
-        Indicator.TextColor3 = Color3.new(1, 0, 0)
+        Indicator.TextColor3 = Color3.new(160, 0, 200)
         Indicator.Font = Enum.Font.GothamBold
         Indicator.TextSize = 16
         Indicator.Parent = ScreenGui
 
         RunService.RenderStepped:Connect(function()
-            Indicator.Text = isAiming and "MAX AIM ASSIST ACTIVE" or ""
+            Indicator.Text = isAiming and "Aimbot Active" or ""
         end)
 
         local function createOrRefreshTargetBox(player)
