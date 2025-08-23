@@ -68,9 +68,9 @@ task.spawn(function()
 end)
 
 local games = {
-    { name = "Phantom Forces", link = "https://raw.githubusercontent.com/nesquickwe/GatyWare/refs/heads/main/pf_lite_rewrite_demo"},
-    { name = "Bad Business", link = "https://raw.githubusercontent.com/nesquickwe/GatyWare/refs/heads/main/bad_business.lua" },
-    { name = "Fisch", link = "https://raw.githubusercontent.com/nesquickwe/GatyWare/refs/heads/main/fisch.lua"},
+    { name = "Phantom Forces", link = "https://raw.githubusercontent.com/dementiaenjoyer/homohack/refs/heads/main/pf_lite_rewrite_demo"},
+    { name = "Bad Business", link = "https://raw.githubusercontent.com/dementiaenjoyer/homohack/main/bad_business.lua" },
+    { name = "Fisch", link = "https://raw.githubusercontent.com/dementiaenjoyer/homohack/refs/heads/main/fisch.lua"},
     { name = "Frontlines"},
     { name = "Scorched Earth"},
     { name = "BedWars", link = "https://raw.githubusercontent.com/7GrandDadPGN/VapeV4ForRoblox/main/NewMainScript.lua"},
