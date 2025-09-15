@@ -74,7 +74,7 @@ local games = {
     { name = "Frontlines"},
     { name = "Scorched Earth"},
     { name = "BedWars", link = "https://raw.githubusercontent.com/7GrandDadPGN/VapeV4ForRoblox/main/NewMainScript.lua"},
-    { name = "Arsenal", link = "https://raw.githubusercontent.com/nesquickwe/GatyWare/refs/heads/main/ArsenalLoader.lua"},
+    { name = "Arsenal", link = "https://raw.githubusercontent.com/nesquickwe/GatyWare/refs/heads/main/Arsenal.lua"},
     { name = "Driving Empire", link = "https://raw.githubusercontent.com/nesquickwe/GatyWare/refs/heads/main/DrivingEmpireGatyWare.lua"},
     { name = "Universal Script", link = "https://raw.githubusercontent.com/nesquickwe/GatyWare/main/UniversalGatyWare.lua"},
 }
