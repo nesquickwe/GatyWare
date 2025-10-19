@@ -59,6 +59,11 @@ local ESP_SETTINGS = {
     TracerThickness = 2,
     SkeletonsColor = Color3.new(1, 1, 1),
     TracerPosition = "Bottom",
+    ShowImage = false,
+    ImageSize = 100, -- Base size for the image
+    ImageScaleWithDistance = true, -- Toggle distance-based scaling
+    MinImageSize = 50, -- Minimum image size
+    MaxImageSize = 150, -- Maximum image size
 }
 
 local function create(class, properties)
@@ -118,7 +123,7 @@ local function createEsp(player)
             local billboard = Instance.new("BillboardGui")
             billboard.Name = "GatyWareImage"
             billboard.Adornee = torso
-            billboard.Size = UDim2.new(0, 100, 0, 100)
+            billboard.Size = UDim2.new(0, ESP_SETTINGS.ImageSize, 0, ESP_SETTINGS.ImageSize)
             billboard.StudsOffset = Vector3.new(0, 0, 0)
             billboard.AlwaysOnTop = true
             billboard.MaxDistance = math.huge
@@ -231,14 +236,30 @@ local function updateEsp()
                         esp.tracer.Visible = false
                     end
                     
-                    if esp["billboard"] then
-                        esp["billboard"].Size = UDim2.new(0, boxSize.X, 0, boxSize.Y)
+                    -- Improved billboard scaling
+                    if esp["billboard"] and ESP_SETTINGS.ShowImage then
+                        local billboard = esp["billboard"]
+                        billboard.Enabled = true
+                        
+                        if ESP_SETTINGS.ImageScaleWithDistance then
+                            -- Scale based on box size to match ESP box
+                            local imageSize = math.clamp(boxSize.X, ESP_SETTINGS.MinImageSize, ESP_SETTINGS.MaxImageSize)
+                            billboard.Size = UDim2.new(0, imageSize, 0, imageSize)
+                        else
+                            -- Fixed size regardless of distance
+                            billboard.Size = UDim2.new(0, ESP_SETTINGS.ImageSize, 0, ESP_SETTINGS.ImageSize)
+                        end
+                    elseif esp["billboard"] then
+                        esp["billboard"].Enabled = false
                     end
                 else
                     for _, drawing in pairs(esp) do
                         if typeof(drawing) == "userdata" and drawing.Visible then
                             drawing.Visible = false
                         end
+                    end
+                    if esp["billboard"] then
+                        esp["billboard"].Enabled = false
                     end
                 end
             else
@@ -247,12 +268,18 @@ local function updateEsp()
                         drawing.Visible = false
                     end
                 end
+                if esp["billboard"] then
+                    esp["billboard"].Enabled = false
+                end
             end
         else
             for _, drawing in pairs(esp) do
                 if typeof(drawing) == "userdata" and drawing.Visible then
                     drawing.Visible = false
                 end
+            end
+            if esp["billboard"] then
+                esp["billboard"].Enabled = false
             end
         end
     end
