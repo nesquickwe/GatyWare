@@ -6,23 +6,30 @@ local localPlayer = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 local cache = {}
 
--- Path to your saved image
-local imagedownload = loadstring(game:HttpGet("https://raw.githubusercontent.com/nesquickwe/GatyWare/refs/heads/main/Imgur.png",true))();
-
+-- Try to load image from local executor assets first, fallback to GitHub download
+local IMAGE_URL
 local imagePath = "GatyWare/Esp/asstes/imgur.png"
 
--- Get usable asset path depending on executor
-local IMAGE_URL
+-- Try local asset first
 if getsynasset then
     IMAGE_URL = getsynasset(imagePath)
+    print("✓ Image asset loaded from local:", IMAGE_URL)
 elseif getcustomasset then
     IMAGE_URL = getcustomasset(imagePath)
+    print("✓ Image asset loaded from local:", IMAGE_URL)
 else
-    warn("❌ Your executor does not support getsynasset or getcustomasset.")
-    return
+    -- Fallback to GitHub download
+    print("⚠ Local image not found, downloading from GitHub...")
+    pcall(function()
+        IMAGE_URL = loadstring(game:HttpGet("https://raw.githubusercontent.com/nesquickwe/GatyWare/refs/heads/main/Imgur.png", true))()
+        print("✓ Image downloaded from GitHub:", IMAGE_URL)
+    end)
+    
+    if not IMAGE_URL then
+        warn("❌ Failed to load image from both local and GitHub sources.")
+        return
+    end
 end
-
-print("✓ Image asset loaded:", IMAGE_URL)
 
 local bones = {
     {"Head", "UpperTorso"},
@@ -52,19 +59,18 @@ local ESP_SETTINGS = {
     CharSize = Vector2.new(4, 6),
     Teamcheck = false,
     WallCheck = false,
-    Enabled = true,
+    Enabled = false,
     ShowBox = false,
     BoxType = "2D",
     ShowName = false,
     ShowHealth = false,
     ShowDistance = false,
     ShowSkeletons = false,
-    ShowTracer = true,
+    ShowTracer = false,
     TracerColor = Color3.new(1, 1, 1), 
     TracerThickness = 2,
     SkeletonsColor = Color3.new(1, 1, 1),
     TracerPosition = "Bottom",
-    ShowImageBillboard = true,
 }
 
 local function create(class, properties)
@@ -111,68 +117,21 @@ local function createEsp(player)
             Outline = true,
             Center = true
         }),
+        tracer = create("Line", {
+            Thickness = ESP_SETTINGS.TracerThickness,
+            Color = ESP_SETTINGS.TracerColor,
+            Transparency = 1
+        }),
         boxLines = {},
     }
 
     cache[player] = esp
     cache[player]["skeletonlines"] = {}
-
-    -- Create image billboard
-    if ESP_SETTINGS.ShowImageBillboard then
-        local character = player.Character
-        if character then
-            local head = character:FindFirstChild("Head")
-            if head then
-                local oldBillboard = head:FindFirstChild("GatyWareImageBillboard")
-                if oldBillboard then oldBillboard:Destroy() end
-
-                local billboard = Instance.new("BillboardGui")
-                billboard.Name = "GatyWareImageBillboard"
-                billboard.Adornee = head
-                billboard.Size = UDim2.new(0, 80, 0, 80)
-                billboard.StudsOffset = Vector3.new(0, 3, 0)
-                billboard.AlwaysOnTop = true
-                billboard.MaxDistance = 10000
-
-                local img = Instance.new("ImageLabel")
-                img.Size = UDim2.new(1, 0, 1, 0)
-                img.BackgroundTransparency = 0
-                img.BackgroundColor3 = Color3.new(0, 0, 0)
-                img.Image = IMAGE_URL
-                img.Parent = billboard
-
-                billboard.Parent = head
-
-                -- Create tracer line
-                local line = Instance.new("Part")
-                line.Name = "GatyWareTracer"
-                line.Shape = Enum.PartType.Cylinder
-                line.Material = Enum.Material.Neon
-                line.CanCollide = false
-                line.TopSurface = Enum.SurfaceType.Smooth
-                line.BottomSurface = Enum.SurfaceType.Smooth
-                line.Color = Color3.fromRGB(255, 0, 255)
-                line.Transparency = 0.3
-                line.Parent = workspace
-
-                local connection
-                connection = RunService.RenderStepped:Connect(function()
-                    if not head or not head.Parent or not line or not line.Parent then
-                        connection:Disconnect()
-                        if line then line:Destroy() end
-                        return
-                    end
-
-                    local headPos = head.Position
-                    local cameraPos = camera.CFrame.Position
-                    local distance = (headPos - cameraPos).Magnitude
-
-                    line.Size = Vector3.new(0.2, distance, 0.2)
-                    line.CFrame = CFrame.new((headPos + cameraPos) / 2, headPos)
-                end)
-            end
-        end
-    end
+    cache[player]["imagedrawing"] = create("Image", {
+        Size = Vector2.new(80, 80),
+        Data = IMAGE_URL,
+        Transparency = 1
+    })
 end
 
 local function isPlayerBehindWall(player)
@@ -197,9 +156,7 @@ local function removeEsp(player)
     if not esp then return end
 
     for _, drawing in pairs(esp) do
-        if typeof(drawing) == "userdata" and drawing.Remove then
-            drawing:Remove()
-        end
+        drawing:Remove()
     end
 
     cache[player] = nil
@@ -214,7 +171,6 @@ local function updateEsp()
             local humanoid = character:FindFirstChild("Humanoid")
             local isBehindWall = ESP_SETTINGS.WallCheck and isPlayerBehindWall(player)
             local shouldShow = not isBehindWall and ESP_SETTINGS.Enabled
-            
             if rootPart and head and humanoid and shouldShow then
                 local position, onScreen = camera:WorldToViewportPoint(rootPart.Position)
                 if onScreen then
@@ -222,6 +178,182 @@ local function updateEsp()
                     local charSize = (camera:WorldToViewportPoint(rootPart.Position - Vector3.new(0, 3, 0)).Y - camera:WorldToViewportPoint(rootPart.Position + Vector3.new(0, 2.6, 0)).Y) / 2
                     local boxSize = Vector2.new(math.floor(charSize * 1.8), math.floor(charSize * 1.9))
                     local boxPosition = Vector2.new(math.floor(hrp2D.X - charSize * 1.8 / 2), math.floor(hrp2D.Y - charSize * 1.6 / 2))
+
+                    if ESP_SETTINGS.ShowName and ESP_SETTINGS.Enabled then
+                        esp.name.Visible = true
+                        esp.name.Text = string.lower(player.Name)
+                        esp.name.Position = Vector2.new(boxSize.X / 2 + boxPosition.X, boxPosition.Y - 16)
+                        esp.name.Color = ESP_SETTINGS.NameColor
+                    else
+                        esp.name.Visible = false
+                    end
+
+                    if ESP_SETTINGS.ShowBox and ESP_SETTINGS.Enabled then
+                        if ESP_SETTINGS.BoxType == "2D" then
+                            esp.boxOutline.Size = boxSize
+                            esp.boxOutline.Position = boxPosition
+                            esp.box.Size = boxSize
+                            esp.box.Position = boxPosition
+                            esp.box.Color = ESP_SETTINGS.BoxColor
+                            esp.box.Visible = true
+                            esp.boxOutline.Visible = true
+                            for _, line in ipairs(esp.boxLines) do
+                                line:Remove()
+                            end
+                        elseif ESP_SETTINGS.BoxType == "Corner Box Esp" then
+                            local lineW = (boxSize.X / 5)
+                            local lineH = (boxSize.Y / 6)
+                            local lineT = 1
+    
+                            if #esp.boxLines == 0 then
+                                for i = 1, 16 do
+                                    local boxLine = create("Line", {
+                                        Thickness = 1,
+                                        Color = ESP_SETTINGS.BoxColor,
+                                        Transparency = 1
+                                    })
+                                    esp.boxLines[#esp.boxLines + 1] = boxLine
+                                end
+                            end
+    
+                            local boxLines = esp.boxLines
+    
+                            -- top left
+                            boxLines[1].From = Vector2.new(boxPosition.X - lineT, boxPosition.Y - lineT)
+                            boxLines[1].To = Vector2.new(boxPosition.X + lineW, boxPosition.Y - lineT)
+    
+                            boxLines[2].From = Vector2.new(boxPosition.X - lineT, boxPosition.Y - lineT)
+                            boxLines[2].To = Vector2.new(boxPosition.X - lineT, boxPosition.Y + lineH)
+    
+                            -- top right
+                            boxLines[3].From = Vector2.new(boxPosition.X + boxSize.X - lineW, boxPosition.Y - lineT)
+                            boxLines[3].To = Vector2.new(boxPosition.X + boxSize.X + lineT, boxPosition.Y - lineT)
+    
+                            boxLines[4].From = Vector2.new(boxPosition.X + boxSize.X + lineT, boxPosition.Y - lineT)
+                            boxLines[4].To = Vector2.new(boxPosition.X + boxSize.X + lineT, boxPosition.Y + lineH)
+    
+                            -- bottom left
+                            boxLines[5].From = Vector2.new(boxPosition.X - lineT, boxPosition.Y + boxSize.Y - lineH)
+                            boxLines[5].To = Vector2.new(boxPosition.X - lineT, boxPosition.Y + boxSize.Y + lineT)
+    
+                            boxLines[6].From = Vector2.new(boxPosition.X - lineT, boxPosition.Y + boxSize.Y + lineT)
+                            boxLines[6].To = Vector2.new(boxPosition.X + lineW, boxPosition.Y + boxSize.Y + lineT)
+    
+                            -- bottom right
+                            boxLines[7].From = Vector2.new(boxPosition.X + boxSize.X - lineW, boxPosition.Y + boxSize.Y + lineT)
+                            boxLines[7].To = Vector2.new(boxPosition.X + boxSize.X + lineT, boxPosition.Y + boxSize.Y + lineT)
+    
+                            boxLines[8].From = Vector2.new(boxPosition.X + boxSize.X + lineT, boxPosition.Y + boxSize.Y - lineH)
+                            boxLines[8].To = Vector2.new(boxPosition.X + boxSize.X + lineT, boxPosition.Y + boxSize.Y + lineT)
+    
+                            -- inline
+                            for i = 9, 16 do
+                                boxLines[i].Thickness = 2
+                                boxLines[i].Color = ESP_SETTINGS.BoxOutlineColor
+                                boxLines[i].Transparency = 1
+                            end
+    
+                            boxLines[9].From = Vector2.new(boxPosition.X, boxPosition.Y)
+                            boxLines[9].To = Vector2.new(boxPosition.X, boxPosition.Y + lineH)
+    
+                            boxLines[10].From = Vector2.new(boxPosition.X, boxPosition.Y)
+                            boxLines[10].To = Vector2.new(boxPosition.X + lineW, boxPosition.Y)
+    
+                            boxLines[11].From = Vector2.new(boxPosition.X + boxSize.X - lineW, boxPosition.Y)
+                            boxLines[11].To = Vector2.new(boxPosition.X + boxSize.X, boxPosition.Y)
+    
+                            boxLines[12].From = Vector2.new(boxPosition.X + boxSize.X, boxPosition.Y)
+                            boxLines[12].To = Vector2.new(boxPosition.X + boxSize.X, boxPosition.Y + lineH)
+    
+                            boxLines[13].From = Vector2.new(boxPosition.X, boxPosition.Y + boxSize.Y - lineH)
+                            boxLines[13].To = Vector2.new(boxPosition.X, boxPosition.Y + boxSize.Y)
+    
+                            boxLines[14].From = Vector2.new(boxPosition.X, boxPosition.Y + boxSize.Y)
+                            boxLines[14].To = Vector2.new(boxPosition.X + lineW, boxPosition.Y + boxSize.Y)
+    
+                            boxLines[15].From = Vector2.new(boxPosition.X + boxSize.X - lineW, boxPosition.Y + boxSize.Y)
+                            boxLines[15].To = Vector2.new(boxPosition.X + boxSize.X, boxPosition.Y + boxSize.Y)
+    
+                            boxLines[16].From = Vector2.new(boxPosition.X + boxSize.X, boxPosition.Y + boxSize.Y - lineH)
+                            boxLines[16].To = Vector2.new(boxPosition.X + boxSize.X, boxPosition.Y + boxSize.Y)
+    
+                            for _, line in ipairs(boxLines) do
+                                line.Visible = true
+                            end
+                            esp.box.Visible = false
+                            esp.boxOutline.Visible = false
+                        end
+                    else
+                        esp.box.Visible = false
+                        esp.boxOutline.Visible = false
+                        for _, line in ipairs(esp.boxLines) do
+                            line:Remove()
+                        end
+                        esp.boxLines = {}
+                    end
+
+                    if ESP_SETTINGS.ShowHealth and ESP_SETTINGS.Enabled then
+                        esp.healthOutline.Visible = true
+                        esp.health.Visible = true
+                        local healthPercentage = player.Character.Humanoid.Health / player.Character.Humanoid.MaxHealth
+                        esp.healthOutline.From = Vector2.new(boxPosition.X - 6, boxPosition.Y + boxSize.Y)
+                        esp.healthOutline.To = Vector2.new(esp.healthOutline.From.X, esp.healthOutline.From.Y - boxSize.Y)
+                        esp.health.From = Vector2.new((boxPosition.X - 5), boxPosition.Y + boxSize.Y)
+                        esp.health.To = Vector2.new(esp.health.From.X, esp.health.From.Y - (player.Character.Humanoid.Health / player.Character.Humanoid.MaxHealth) * boxSize.Y)
+                        esp.health.Color = ESP_SETTINGS.HealthLowColor:Lerp(ESP_SETTINGS.HealthHighColor, healthPercentage)
+                    else
+                        esp.healthOutline.Visible = false
+                        esp.health.Visible = false
+                    end
+
+                    if ESP_SETTINGS.ShowDistance and ESP_SETTINGS.Enabled then
+                        local distance = (camera.CFrame.p - rootPart.Position).Magnitude
+                        esp.distance.Text = string.format("%.1f studs", distance)
+                        esp.distance.Position = Vector2.new(boxPosition.X + boxSize.X / 2, boxPosition.Y + boxSize.Y + 5)
+                        esp.distance.Visible = true
+                    else
+                        esp.distance.Visible = false
+                    end
+
+                    if ESP_SETTINGS.ShowSkeletons and ESP_SETTINGS.Enabled then
+                        if #esp["skeletonlines"] == 0 then
+                            for _, bonePair in ipairs(bones) do
+                                local parentBone, childBone = bonePair[1], bonePair[2]
+                                
+                                if player.Character and player.Character[parentBone] and player.Character[childBone] then
+                                    local skeletonLine = create("Line", {
+                                        Thickness = 1,
+                                        Color = ESP_SETTINGS.SkeletonsColor,
+                                        Transparency = 1
+                                    })
+                                    esp["skeletonlines"][#esp["skeletonlines"] + 1] = {skeletonLine, parentBone, childBone}
+                                end
+                            end
+                        end
+                    
+                        for _, lineData in ipairs(esp["skeletonlines"]) do
+                            local skeletonLine = lineData[1]
+                            local parentBone, childBone = lineData[2], lineData[3]
+                    
+                            if player.Character and player.Character[parentBone] and player.Character[childBone] then
+                                local parentPosition = camera:WorldToViewportPoint(player.Character[parentBone].Position)
+                                local childPosition = camera:WorldToViewportPoint(player.Character[childBone].Position)
+                    
+                                skeletonLine.From = Vector2.new(parentPosition.X, parentPosition.Y)
+                                skeletonLine.To = Vector2.new(childPosition.X, childPosition.Y)
+                                skeletonLine.Color = ESP_SETTINGS.SkeletonsColor
+                                skeletonLine.Visible = true
+                            else
+                                skeletonLine:Remove()
+                            end
+                        end
+                    else
+                        for _, lineData in ipairs(esp["skeletonlines"]) do
+                            local skeletonLine = lineData[1]
+                            skeletonLine:Remove()
+                        end
+                        esp["skeletonlines"] = {}
+                    end                    
 
                     if ESP_SETTINGS.ShowTracer and ESP_SETTINGS.Enabled then
                         local tracerY
@@ -244,24 +376,45 @@ local function updateEsp()
                     end
                 else
                     for _, drawing in pairs(esp) do
-                        if typeof(drawing) == "userdata" and drawing.Visible ~= nil then
-                            drawing.Visible = false
-                        end
+                        drawing.Visible = false
                     end
+                    for _, lineData in ipairs(esp["skeletonlines"]) do
+                        local skeletonLine = lineData[1]
+                        skeletonLine:Remove()
+                    end
+                    esp["skeletonlines"] = {}
+                    for _, line in ipairs(esp.boxLines) do
+                        line:Remove()
+                    end
+                    esp.boxLines = {}
                 end
             else
                 for _, drawing in pairs(esp) do
-                    if typeof(drawing) == "userdata" and drawing.Visible ~= nil then
-                        drawing.Visible = false
-                    end
+                    drawing.Visible = false
                 end
+                for _, lineData in ipairs(esp["skeletonlines"]) do
+                    local skeletonLine = lineData[1]
+                    skeletonLine:Remove()
+                end
+                esp["skeletonlines"] = {}
+                for _, line in ipairs(esp.boxLines) do
+                    line:Remove()
+                end
+                esp.boxLines = {}
             end
         else
             for _, drawing in pairs(esp) do
-                if typeof(drawing) == "userdata" and drawing.Visible ~= nil then
-                    drawing.Visible = false
-                end
+                drawing.Visible = false
             end
+            for _, lineData in ipairs(esp["skeletonlines"]) do
+                local skeletonLine = lineData[1]
+                skeletonLine:Remove()
+            end
+            esp["skeletonlines"] = {}
+            for _, line in ipairs(esp.boxLines) do
+                line:Remove()
+            end
+            esp.boxLines = {}
         end
     end
 end
