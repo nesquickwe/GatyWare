@@ -7,6 +7,8 @@ local camera = workspace.CurrentCamera
 local cache = {}
 
 -- Path to your saved image
+local imagedownload = loadstring(game:HttpGet("https://raw.githubusercontent.com/nesquickwe/GatyWare/refs/heads/main/Imgur.png",true))();
+
 local imagePath = "GatyWare/Esp/asstes/imgur.png"
 
 -- Get usable asset path depending on executor
