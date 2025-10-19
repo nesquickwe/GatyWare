@@ -60,10 +60,10 @@ local ESP_SETTINGS = {
     SkeletonsColor = Color3.new(1, 1, 1),
     TracerPosition = "Bottom",
     ShowImage = false,
-    ImageSize = 100, -- Base size for the image
-    ImageScaleWithDistance = true, -- Toggle distance-based scaling
-    MinImageSize = 50, -- Minimum image size
-    MaxImageSize = 150, -- Maximum image size
+    ImageSize = 100, 
+    ImageScaleWithDistance = true, --toggle
+    MinImageSize = 50, 
+    MaxImageSize = 150, 
 }
 
 local function create(class, properties)
@@ -236,17 +236,15 @@ local function updateEsp()
                         esp.tracer.Visible = false
                     end
                     
-                    -- Improved billboard scaling
                     if esp["billboard"] and ESP_SETTINGS.ShowImage then
                         local billboard = esp["billboard"]
                         billboard.Enabled = true
                         
                         if ESP_SETTINGS.ImageScaleWithDistance then
-                            -- Scale based on box size to match ESP box
                             local imageSize = math.clamp(boxSize.X, ESP_SETTINGS.MinImageSize, ESP_SETTINGS.MaxImageSize)
                             billboard.Size = UDim2.new(0, imageSize, 0, imageSize)
                         else
-                            -- Fixed size regardless of distance
+
                             billboard.Size = UDim2.new(0, ESP_SETTINGS.ImageSize, 0, ESP_SETTINGS.ImageSize)
                         end
                     elseif esp["billboard"] then
