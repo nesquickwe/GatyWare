@@ -1,0 +1,95 @@
+-- Auto-Equip Accessories Script (Client-Side)
+-- Place this in StarterPlayer > StarterCharacterScripts or use with an executor
+
+local Players = game:GetService("Players")
+local InsertService = game:GetService("InsertService")
+
+local player = Players.LocalPlayer
+
+-- Asset IDs to equip
+local assetIds = {
+    15093053680, -- Headless-Head
+    139607718,   -- Korblox-Deathspeaker-Right-Leg
+    131592085,   -- Headless-Horsemans-New-Head
+    7935224785,  -- girls-love-my-swag
+    136964571938165, -- classic-messy-scene-girl-swag-hair
+    16660423515  -- regret
+}
+
+-- Function to load and equip an accessory
+local function equipAccessory(character, assetId)
+    local success, model = pcall(function()
+        return InsertService:LoadAsset(assetId)
+    end)
+    
+    if success and model then
+        for _, item in pairs(model:GetChildren()) do
+            if item:IsA("Accessory") or item:IsA("Hat") then
+                item.Parent = character
+            elseif item:IsA("SpecialMesh") or item:IsA("CharacterMesh") then
+                item.Parent = character
+            elseif item:IsA("Model") then
+                for _, subItem in pairs(item:GetChildren()) do
+                    if subItem:IsA("Accessory") or subItem:IsA("Hat") or subItem:IsA("SpecialMesh") then
+                        subItem.Parent = character
+                    end
+                end
+            end
+        end
+        model:Destroy()
+    end
+end
+
+-- Function to remove existing accessories
+local function removeExistingAccessories(character)
+    for _, item in pairs(character:GetChildren()) do
+        if item:IsA("Accessory") or item:IsA("Hat") then
+            item:Destroy()
+        end
+    end
+end
+
+-- Function to setup character
+local function setupCharacter(character)
+    wait(0.5) -- Wait for character to fully load
+    
+    -- Remove existing accessories first
+    removeExistingAccessories(character)
+    
+    -- Equip all accessories
+    for _, assetId in pairs(assetIds) do
+        equipAccessory(character, assetId)
+        wait(0.1) -- Small delay between each item
+    end
+end
+
+-- Apply to current character if it exists
+if player.Character then
+    setupCharacter(player.Character)
+end
+
+-- Apply to future characters (respawn)
+player.CharacterAdded:Connect(function(character)
+    setupCharacter(character)
+end)
+
+-- Continuous check to ensure items stay equipped (every 5 seconds)
+spawn(function()
+    while wait(5) do
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            local hasAllItems = true
+            local currentAccessories = 0
+            
+            for _, item in pairs(player.Character:GetChildren()) do
+                if item:IsA("Accessory") or item:IsA("Hat") then
+                    currentAccessories = currentAccessories + 1
+                end
+            end
+            
+            -- If accessories count is less than expected, reapply
+            if currentAccessories < #assetIds then
+                setupCharacter(player.Character)
+            end
+        end
+    end
+end)
