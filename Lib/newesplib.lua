@@ -549,7 +549,10 @@ local function updateEsp()
         if character then
             local rootPart = character:FindFirstChild("HumanoidRootPart")
             local head = character:FindFirstChild("Head")
-            local humanoid = character:FindFirstChild("Humanoid")
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+            -- Skip non-player / prop models that have no Humanoid or root
+            if not rootPart or not humanoid then hideAll(esp) continue end
 
             local visible = isVisible(player)
             local shouldShow = ESP_SETTINGS.Enabled and (not ESP_SETTINGS.WallCheck or visible)
@@ -696,33 +699,39 @@ local function updateEsp()
 
                     -- Skeleton
                     if ESP_SETTINGS.ShowSkeletons then
-                        if #esp.skeletonlines == 0 then
-                            for _, bonePair in ipairs(bones) do
-                                local p, c = bonePair[1], bonePair[2]
-                                if character:FindFirstChild(p) and character:FindFirstChild(c) then
-                                    local sl = create("Line", {
-                                        Thickness = 1,
-                                        Color = ESP_SETTINGS.SkeletonsColor,
-                                        Transparency = 1,
-                                    })
-                                    esp.skeletonlines[#esp.skeletonlines + 1] = {sl, p, c}
+                        -- Only build skeleton lines if this is an R15 rig (has UpperTorso)
+                        local isR15 = character:FindFirstChild("UpperTorso") ~= nil
+                        if isR15 then
+                            if #esp.skeletonlines == 0 then
+                                for _, bonePair in ipairs(bones) do
+                                    local p, c = bonePair[1], bonePair[2]
+                                    if character:FindFirstChild(p) and character:FindFirstChild(c) then
+                                        local sl = create("Line", {
+                                            Thickness = 1,
+                                            Color = ESP_SETTINGS.SkeletonsColor,
+                                            Transparency = 1,
+                                        })
+                                        esp.skeletonlines[#esp.skeletonlines + 1] = {sl, p, c}
+                                    end
                                 end
                             end
-                        end
-                        for _, lineData in ipairs(esp.skeletonlines) do
-                            local sl, p, c = lineData[1], lineData[2], lineData[3]
-                            local partP = character:FindFirstChild(p)
-                            local partC = character:FindFirstChild(c)
-                            if partP and partC then
-                                local pp2D = camera:WorldToViewportPoint(partP.Position)
-                                local cp2D = camera:WorldToViewportPoint(partC.Position)
-                                sl.From    = Vector2.new(pp2D.X, pp2D.Y)
-                                sl.To      = Vector2.new(cp2D.X, cp2D.Y)
-                                sl.Color   = ESP_SETTINGS.SkeletonsColor
-                                sl.Visible = true
-                            else
-                                sl.Visible = false
+                            for _, lineData in ipairs(esp.skeletonlines) do
+                                local sl, p, c = lineData[1], lineData[2], lineData[3]
+                                local partP = character:FindFirstChild(p)
+                                local partC = character:FindFirstChild(c)
+                                if partP and partC then
+                                    local pp2D = camera:WorldToViewportPoint(partP.Position)
+                                    local cp2D = camera:WorldToViewportPoint(partC.Position)
+                                    sl.From    = Vector2.new(pp2D.X, pp2D.Y)
+                                    sl.To      = Vector2.new(cp2D.X, cp2D.Y)
+                                    sl.Color   = ESP_SETTINGS.SkeletonsColor
+                                    sl.Visible = true
+                                else
+                                    sl.Visible = false
+                                end
                             end
+                        else
+                            resetSkeletonLines(esp)
                         end
                     else
                         resetSkeletonLines(esp)
