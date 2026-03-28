@@ -264,42 +264,84 @@ local function initRadar()
     })
 end
 
+-- Pre-allocate blip pool up front so we never alloc during the hot loop
+local RADAR_BLIP_POOL_SIZE = 50
+local function initRadarBlipPool()
+    for i = 1, RADAR_BLIP_POOL_SIZE do
+        if not radarDrawings.blips[i] then
+            radarDrawings.blips[i] = create("Circle", {
+                Radius = 4,
+                Filled = true,
+                Visible = false,
+            })
+        end
+    end
+end
+
+-- Cached values to avoid redundant Drawing writes
+local _radarLastSize = nil
+local _radarLastPos  = nil
+local _radarLastTick = 0
+local RADAR_UPDATE_INTERVAL = 1 / 20 -- 20fps is plenty for a radar
+
 local function updateRadar()
     initRadar()
+
+    local now = tick()
+    if now - _radarLastTick < RADAR_UPDATE_INTERVAL then return end
+    _radarLastTick = now
 
     local size = ESP_SETTINGS.RadarSize
     local rx, ry = ESP_SETTINGS.RadarX, ESP_SETTINGS.RadarY
 
     if not ESP_SETTINGS.ShowRadar or not ESP_SETTINGS.Enabled then
-        radarDrawings.bg.Visible = false
-        radarDrawings.border.Visible = false
-        radarDrawings.self.Visible = false
-        for _, blip in pairs(radarDrawings.blips) do
-            blip.Visible = false
+        if radarDrawings.bg.Visible then
+            radarDrawings.bg.Visible     = false
+            radarDrawings.border.Visible = false
+            radarDrawings.self.Visible   = false
+            for i = 1, #radarDrawings.blips do
+                radarDrawings.blips[i].Visible = false
+            end
         end
         return
     end
 
-    radarDrawings.bg.Size = Vector2.new(size, size)
-    radarDrawings.bg.Position = Vector2.new(rx, ry)
-    radarDrawings.bg.Visible = true
-
-    radarDrawings.border.Size = Vector2.new(size, size)
-    radarDrawings.border.Position = Vector2.new(rx, ry)
+    -- Only write Size/Position when they actually change
+    local posKey = rx .. "," .. ry .. "," .. size
+    if posKey ~= _radarLastPos then
+        _radarLastPos = posKey
+        local sizeVec = Vector2.new(size, size)
+        local posVec  = Vector2.new(rx, ry)
+        radarDrawings.bg.Size       = sizeVec
+        radarDrawings.bg.Position   = posVec
+        radarDrawings.border.Size   = sizeVec
+        radarDrawings.border.Position = posVec
+    end
+    radarDrawings.bg.Visible     = true
     radarDrawings.border.Visible = true
 
     local center = Vector2.new(rx + size / 2, ry + size / 2)
     radarDrawings.self.Position = center
-    radarDrawings.self.Visible = true
+    radarDrawings.self.Visible  = true
 
     local selfRoot = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not selfRoot then return end
 
-    local selfPos = selfRoot.Position
-    local camCF = camera.CFrame
-    local range = ESP_SETTINGS.RadarRange
-    local playerList = Players:GetPlayers()
+    -- Snapshot these once outside the loop
+    local selfPos   = selfRoot.Position
+    local camLookX  = camera.CFrame.LookVector.X
+    local camLookZ  = camera.CFrame.LookVector.Z
+    local halfSize  = size / 2
+    local invRange  = halfSize / ESP_SETTINGS.RadarRange
+    local teamcheck = ESP_SETTINGS.Teamcheck
+    local myTeam    = localPlayer.Team
+    local enemyCol  = ESP_SETTINGS.RadarEnemyColor
+    local teamCol   = ESP_SETTINGS.RadarTeamColor
+    local centerX   = center.X
+    local centerY   = center.Y
+
     local blipIndex = 1
+    local playerList = Players:GetPlayers()
 
     for _, player in ipairs(playerList) do
         if player == localPlayer then continue end
@@ -309,38 +351,39 @@ local function updateRadar()
         local root = character:FindFirstChild("HumanoidRootPart")
         if not root then continue end
 
-        local isTeammate = player.Team and player.Team == localPlayer.Team
-        local shouldShow = ESP_SETTINGS.Teamcheck and isTeammate or (not ESP_SETTINGS.Teamcheck and not isTeammate)
+        local isTeammate = player.Team == myTeam
+        local shouldShow = teamcheck and isTeammate or (not teamcheck and not isTeammate)
         if not shouldShow then continue end
 
-        local delta = root.Position - selfPos
-        local localDelta = camCF:VectorToObjectSpace(delta)
-        local relX = localDelta.X / range * (size / 2)
-        local relZ = localDelta.Z / range * (size / 2)
+        -- Cheap 2D radar rotation using only camera look XZ (no VectorToObjectSpace alloc)
+        local dx = root.Position.X - selfPos.X
+        local dz = root.Position.Z - selfPos.Z
+        -- Rotate delta into camera-facing space manually
+        local relX =  dx * camLookZ - dz * camLookX
+        local relZ =  dx * camLookX + dz * camLookZ
 
-        local blipPos = Vector2.new(
-            math.clamp(center.X + relX, rx, rx + size),
-            math.clamp(center.Y + relZ, ry, ry + size)
-        )
+        local bx = math.clamp(centerX + relX * invRange, rx, rx + size)
+        local bz = math.clamp(centerY + relZ * invRange, ry, ry + size)
 
+        -- Grow pool on demand only if server has more players than expected
         local blip = radarDrawings.blips[blipIndex]
         if not blip then
-            blip = create("Circle", {
-                Radius = 4,
-                Filled = true,
-                Visible = false,
-            })
+            blip = create("Circle", { Radius = 4, Filled = true, Visible = false })
             radarDrawings.blips[blipIndex] = blip
         end
 
-        blip.Color = isTeammate and ESP_SETTINGS.RadarTeamColor or ESP_SETTINGS.RadarEnemyColor
-        blip.Position = blipPos
-        blip.Visible = true
+        local col = isTeammate and teamCol or enemyCol
+        if blip.Color ~= col then blip.Color = col end
+        blip.Position = Vector2.new(bx, bz)
+        blip.Visible  = true
         blipIndex += 1
     end
 
+    -- Hide unused blips
     for i = blipIndex, #radarDrawings.blips do
-        radarDrawings.blips[i].Visible = false
+        if radarDrawings.blips[i].Visible then
+            radarDrawings.blips[i].Visible = false
+        end
     end
 end
 
@@ -834,6 +877,7 @@ end)
 RunService.RenderStepped:Connect(updateEsp)
 
 initRadar()
+initRadarBlipPool()
 initCursor()
 
 return ESP_SETTINGS
