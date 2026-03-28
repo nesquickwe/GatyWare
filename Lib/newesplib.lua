@@ -187,13 +187,18 @@ local function loadImage(folder, filename)
     local key = folder .. "/" .. filename
     if imageCache[key] then return imageCache[key] end
 
-    local ok, data = pcall(readfile, "GatyWare/" .. folder .. "/" .. filename)
-    if not ok or not data then
-        warn("[GatyWare] Could not read image: " .. key)
+    local path = "GatyWare/" .. folder .. "/" .. filename
+    if not isfile(path) then
+        warn("[GatyWare] File not found: " .. path)
         return nil
     end
 
-    -- Use Drawing Image if available (most executors support this via Drawing.new("Image"))
+    local ok, data = pcall(readfile, path)
+    if not ok or not data then
+        warn("[GatyWare] Could not read image: " .. path)
+        return nil
+    end
+
     local img = Drawing.new("Image")
     img.Data = data
     img.Visible = false
