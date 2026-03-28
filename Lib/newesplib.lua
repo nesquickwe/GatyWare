@@ -430,6 +430,7 @@ local function applyChams(player)
         sb.Parent = camera
         chamsCache[player] = sb
     else
+        -- Always re-point at current character in case they respawned
         chamsCache[player].Adornee = character
         chamsCache[player].SurfaceColor3 = ESP_SETTINGS.ChamsColor
         chamsCache[player].Color3 = ESP_SETTINGS.ChamsColor
@@ -722,10 +723,15 @@ local function updateEsp()
                                 if partP and partC then
                                     local pp2D = camera:WorldToViewportPoint(partP.Position)
                                     local cp2D = camera:WorldToViewportPoint(partC.Position)
-                                    sl.From    = Vector2.new(pp2D.X, pp2D.Y)
-                                    sl.To      = Vector2.new(cp2D.X, cp2D.Y)
-                                    sl.Color   = ESP_SETTINGS.SkeletonsColor
-                                    sl.Visible = true
+                                    -- hide if either bone is behind the camera
+                                    if pp2D.Z > 0 and cp2D.Z > 0 then
+                                        sl.From    = Vector2.new(pp2D.X, pp2D.Y)
+                                        sl.To      = Vector2.new(cp2D.X, cp2D.Y)
+                                        sl.Color   = ESP_SETTINGS.SkeletonsColor
+                                        sl.Visible = true
+                                    else
+                                        sl.Visible = false
+                                    end
                                 else
                                     sl.Visible = false
                                 end
@@ -747,10 +753,11 @@ local function updateEsp()
                         else
                             tracerY = camera.ViewportSize.Y
                         end
-                        esp.tracer.Color   = activeTracerColor
-                        esp.tracer.From    = Vector2.new(camera.ViewportSize.X / 2, tracerY)
-                        esp.tracer.To      = Vector2.new(hrp2D.X, hrp2D.Y)
-                        esp.tracer.Visible = true
+                        esp.tracer.Color       = activeTracerColor
+                        esp.tracer.Transparency = 0
+                        esp.tracer.From         = Vector2.new(camera.ViewportSize.X / 2, tracerY)
+                        esp.tracer.To           = Vector2.new(hrp2D.X, hrp2D.Y)
+                        esp.tracer.Visible      = true
                     else
                         esp.tracer.Visible = false
                     end
