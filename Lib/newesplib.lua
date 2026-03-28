@@ -61,8 +61,8 @@ local ESP_SETTINGS = {
 
     -- Visibility Check
     ShowVisibilityCheck = false,
-    VisibleColor = Color3.new(0, 1, 0),     -- shown when enemy is visible
-    OccludedColor = Color3.new(1, 0.4, 0),  -- shown when enemy is behind cover
+    VisibleColor = Color3.new(0, 1, 0),
+    OccludedColor = Color3.new(1, 0.4, 0),
 
     -- Chams (SelectionBox highlight on character)
     ShowChams = false,
@@ -72,9 +72,9 @@ local ESP_SETTINGS = {
     -- Radar
     ShowRadar = false,
     RadarSize = 200,
-    RadarRange = 500,       -- studs shown on radar
-    RadarX = 100,           -- top-left anchor X
-    RadarY = 100,           -- top-left anchor Y
+    RadarRange = 500,
+    RadarX = 100,
+    RadarY = 100,
     RadarBgColor = Color3.new(0, 0, 0),
     RadarBgTransparency = 0.5,
     RadarEnemyColor = Color3.new(1, 0, 0),
@@ -92,72 +92,19 @@ local ESP_SETTINGS = {
 
     -- Custom ESP Image (GatyWare/CustomImages/)
     ShowCustomImage = false,
-    CustomImageName = "esp_image.png",        -- filename inside GatyWare/CustomImages/
-    CustomImageSizeRatio = Vector2.new(1, 1), -- scale relative to box (1 = fill box)
+    CustomImageName = "esp_image.png",
+    CustomImageSizeRatio = Vector2.new(1, 1),
     CustomImageTransparency = 0,
 
     -- Custom Cursor (GatyWare/CustomCursor/)
     ShowCustomCursor = false,
-    CustomCursorName = "cursor.png",          -- filename inside GatyWare/CustomCursor/
+    CustomCursorName = "cursor.png",
     CustomCursorSize = Vector2.new(32, 32),
     CustomCursorTransparency = 0,
 
     -- Misc
     CharSize = Vector2.new(4, 6),
 }
-
--- ─────────────────────────────────────────────────────────────
---// Utility
--- ─────────────────────────────────────────────────────────────
-local function create(class, properties)
-    local drawing = Drawing.new(class)
-    for property, value in pairs(properties) do
-        drawing[property] = value
-    end
-    return drawing
-end
-
-local function hideDrawing(d)
-    if type(d) == "table" then
-        -- skip tables like skeletonlines / boxLines
-        return
-    end
-    pcall(function() d.Visible = false end)
-end
-
-local function hideAll(esp)
-    for k, v in pairs(esp) do
-        if k ~= "skeletonlines" and k ~= "boxLines" and k ~= "chams" then
-            hideDrawing(v)
-        end
-    end
-    for _, lineData in ipairs(esp["skeletonlines"] or {}) do
-        pcall(function() lineData[1].Visible = false end)
-    end
-    for _, line in ipairs(esp.boxLines or {}) do
-        pcall(function() line.Visible = false end)
-    end
-end
-
--- ─────────────────────────────────────────────────────────────
---// Visibility Check helper
--- ─────────────────────────────────────────────────────────────
-local function isVisible(player)
-    local character = player.Character
-    if not character then return false end
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return false end
-
-    local origin = camera.CFrame.Position
-    local direction = (rootPart.Position - origin)
-    local ray = Ray.new(origin, direction)
-    local hit = workspace:FindPartOnRayWithIgnoreList(ray, {localPlayer.Character, character})
-    return hit == nil -- true = clear line of sight
-end
-
-local function isPlayerBehindWall(player)
-    return not isVisible(player)
-end
 
 -- ─────────────────────────────────────────────────────────────
 --// Folder Setup
@@ -178,8 +125,57 @@ end
 initFolders()
 
 -- ─────────────────────────────────────────────────────────────
+--// Utility
+-- ─────────────────────────────────────────────────────────────
+local function create(class, properties)
+    local drawing = Drawing.new(class)
+    for property, value in pairs(properties) do
+        drawing[property] = value
+    end
+    return drawing
+end
+
+local function hideAll(esp)
+    for k, v in pairs(esp) do
+        if k == "skeletonlines" or k == "boxLines" or k == "espImage" then continue end
+        pcall(function() v.Visible = false end)
+    end
+    for _, lineData in ipairs(esp.skeletonlines or {}) do
+        pcall(function() lineData[1].Visible = false end)
+    end
+    for _, line in ipairs(esp.boxLines or {}) do
+        pcall(function() line.Visible = false end)
+    end
+    if esp.espImage then
+        pcall(function() esp.espImage.Visible = false end)
+    end
+end
+
+local function resetSkeletonLines(esp)
+    for _, lineData in ipairs(esp.skeletonlines or {}) do
+        pcall(function() lineData[1]:Remove() end)
+    end
+    esp.skeletonlines = {}
+end
+
+-- ─────────────────────────────────────────────────────────────
+--// Visibility Check helper
+-- ─────────────────────────────────────────────────────────────
+local function isVisible(player)
+    local character = player.Character
+    if not character then return false end
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return false end
+
+    local origin = camera.CFrame.Position
+    local direction = (rootPart.Position - origin)
+    local ray = Ray.new(origin, direction)
+    local hit = workspace:FindPartOnRayWithIgnoreList(ray, {localPlayer.Character, character})
+    return hit == nil
+end
+
+-- ─────────────────────────────────────────────────────────────
 --// Image / Cursor loading helpers
--- Executors expose `readfile` for reading from workspace folder
 -- ─────────────────────────────────────────────────────────────
 local imageCache = {}
 
@@ -216,7 +212,6 @@ local function initCursor()
         if cursorImage then cursorImage.Visible = false end
         return
     end
-
     if not cursorImage then
         cursorImage = loadImage("CustomCursor", ESP_SETTINGS.CustomCursorName)
     end
@@ -303,7 +298,6 @@ local function updateRadar()
     local selfPos = selfRoot.Position
     local camCF = camera.CFrame
     local range = ESP_SETTINGS.RadarRange
-
     local playerList = Players:GetPlayers()
     local blipIndex = 1
 
@@ -316,18 +310,14 @@ local function updateRadar()
         if not root then continue end
 
         local isTeammate = player.Team and player.Team == localPlayer.Team
-
-        -- Teamcheck: show teammates on radar only when teamcheck is ON
         local shouldShow = ESP_SETTINGS.Teamcheck and isTeammate or (not ESP_SETTINGS.Teamcheck and not isTeammate)
         if not shouldShow then continue end
 
-        -- World delta rotated into camera-local XZ
         local delta = root.Position - selfPos
         local localDelta = camCF:VectorToObjectSpace(delta)
         local relX = localDelta.X / range * (size / 2)
         local relZ = localDelta.Z / range * (size / 2)
 
-        -- Clamp to radar circle
         local blipPos = Vector2.new(
             math.clamp(center.X + relX, rx, rx + size),
             math.clamp(center.Y + relZ, ry, ry + size)
@@ -349,7 +339,6 @@ local function updateRadar()
         blipIndex += 1
     end
 
-    -- Hide unused blips
     for i = blipIndex, #radarDrawings.blips do
         radarDrawings.blips[i].Visible = false
     end
@@ -358,7 +347,7 @@ end
 -- ─────────────────────────────────────────────────────────────
 --// ChinaHat
 -- ─────────────────────────────────────────────────────────────
-local chinaHats = {} -- [player] = {hat, weld}
+local chinaHats = {}
 
 local function removeChinaHat(player)
     local data = chinaHats[player]
@@ -383,7 +372,6 @@ local function attachChinaHat(player, head)
     hat.Massless = true
     hat.CastShadow = true
     hat.Parent = camera
-
     hat.CFrame = head.CFrame + ESP_SETTINGS.ChinaHatHeadOffset
 
     local weld = Instance.new("WeldConstraint")
@@ -419,7 +407,7 @@ end
 -- ─────────────────────────────────────────────────────────────
 --// Chams (SelectionBox highlight)
 -- ─────────────────────────────────────────────────────────────
-local chamsCache = {} -- [player] = SelectionBox
+local chamsCache = {}
 
 local function removeChams(player)
     if chamsCache[player] then
@@ -510,13 +498,11 @@ local function createEsp(player)
             Transparency = 1,
             Visible = false,
         }),
-        -- Custom ESP image (Drawing Image inside box)
         espImage = nil,
         boxLines = {},
         skeletonlines = {},
     }
 
-    -- Try to load the custom ESP image drawing once
     if ESP_SETTINGS.ShowCustomImage then
         local img = loadImage("CustomImages", ESP_SETTINGS.CustomImageName)
         esp.espImage = img
@@ -555,7 +541,6 @@ local function updateEsp()
         local team = player.Team
         local isTeammate = team and team == localPlayer.Team
 
-        -- Teamcheck: skip teammates unless we want to show them
         if ESP_SETTINGS.Teamcheck and isTeammate then
             hideAll(esp)
             continue
@@ -567,15 +552,20 @@ local function updateEsp()
             local humanoid = character:FindFirstChild("Humanoid")
 
             local visible = isVisible(player)
-            local isBehindWall = not visible
-            local shouldShow = ESP_SETTINGS.Enabled and (not ESP_SETTINGS.WallCheck or not isBehindWall)
+            local shouldShow = ESP_SETTINGS.Enabled and (not ESP_SETTINGS.WallCheck or visible)
 
             if rootPart and head and humanoid and shouldShow then
                 local hrp2D, onScreen = camera:WorldToViewportPoint(rootPart.Position)
 
-                if onScreen then
-                    local charSize = (camera:WorldToViewportPoint(rootPart.Position - Vector3.new(0, 3, 0)).Y
-                        - camera:WorldToViewportPoint(rootPart.Position + Vector3.new(0, 2.6, 0)).Y) / 2
+                -- Z > 0 check prevents drawings freezing when player is behind camera
+                if onScreen and hrp2D.Z > 0 then
+                    local topY    = camera:WorldToViewportPoint(rootPart.Position + Vector3.new(0, 2.6, 0)).Y
+                    local bottomY = camera:WorldToViewportPoint(rootPart.Position - Vector3.new(0, 3, 0)).Y
+                    local charSize = math.abs(bottomY - topY) / 2
+
+                    -- Too small to draw, skip
+                    if charSize < 1 then hideAll(esp) continue end
+
                     local boxSize = Vector2.new(math.floor(charSize * 1.8), math.floor(charSize * 1.9))
                     local boxPosition = Vector2.new(
                         math.floor(hrp2D.X - charSize * 1.8 / 2),
@@ -583,22 +573,22 @@ local function updateEsp()
                     )
 
                     -- Visibility Check color
-                    local activeBoxColor = ESP_SETTINGS.BoxColor
+                    local activeBoxColor    = ESP_SETTINGS.BoxColor
                     local activeTracerColor = ESP_SETTINGS.TracerColor
-                    local activeNameColor = ESP_SETTINGS.NameColor
+                    local activeNameColor   = ESP_SETTINGS.NameColor
                     if ESP_SETTINGS.ShowVisibilityCheck then
                         local vc = visible and ESP_SETTINGS.VisibleColor or ESP_SETTINGS.OccludedColor
-                        activeBoxColor = vc
+                        activeBoxColor    = vc
                         activeTracerColor = vc
-                        activeNameColor = vc
+                        activeNameColor   = vc
                     end
 
                     -- Name
                     if ESP_SETTINGS.ShowName then
-                        esp.name.Visible = true
-                        esp.name.Text = string.lower(player.Name)
+                        esp.name.Visible  = true
+                        esp.name.Text     = string.lower(player.Name)
                         esp.name.Position = Vector2.new(boxSize.X / 2 + boxPosition.X, boxPosition.Y - 16)
-                        esp.name.Color = activeNameColor
+                        esp.name.Color    = activeNameColor
                     else
                         esp.name.Visible = false
                     end
@@ -606,13 +596,13 @@ local function updateEsp()
                     -- Box
                     if ESP_SETTINGS.ShowBox then
                         if ESP_SETTINGS.BoxType == "2D" then
-                            esp.boxOutline.Size = boxSize
+                            esp.boxOutline.Size     = boxSize
                             esp.boxOutline.Position = boxPosition
-                            esp.box.Size = boxSize
-                            esp.box.Position = boxPosition
-                            esp.box.Color = activeBoxColor
-                            esp.box.Visible = true
-                            esp.boxOutline.Visible = true
+                            esp.box.Size            = boxSize
+                            esp.box.Position        = boxPosition
+                            esp.box.Color           = activeBoxColor
+                            esp.box.Visible         = true
+                            esp.boxOutline.Visible  = true
                             for _, line in ipairs(esp.boxLines) do line:Remove() end
                             esp.boxLines = {}
                         elseif ESP_SETTINGS.BoxType == "Corner Box Esp" then
@@ -669,11 +659,11 @@ local function updateEsp()
                             bl[16].From = Vector2.new(boxPosition.X + boxSize.X, boxPosition.Y + boxSize.Y - lineH)
                             bl[16].To   = Vector2.new(boxPosition.X + boxSize.X, boxPosition.Y + boxSize.Y)
                             for _, line in ipairs(bl) do line.Visible = true end
-                            esp.box.Visible = false
+                            esp.box.Visible        = false
                             esp.boxOutline.Visible = false
                         end
                     else
-                        esp.box.Visible = false
+                        esp.box.Visible        = false
                         esp.boxOutline.Visible = false
                         for _, line in ipairs(esp.boxLines) do line:Remove() end
                         esp.boxLines = {}
@@ -682,24 +672,24 @@ local function updateEsp()
                     -- Health
                     if ESP_SETTINGS.ShowHealth then
                         local hp = humanoid.Health / humanoid.MaxHealth
-                        esp.healthOutline.From = Vector2.new(boxPosition.X - 6, boxPosition.Y + boxSize.Y)
-                        esp.healthOutline.To   = Vector2.new(boxPosition.X - 6, boxPosition.Y)
-                        esp.health.From        = Vector2.new(boxPosition.X - 5, boxPosition.Y + boxSize.Y)
-                        esp.health.To          = Vector2.new(boxPosition.X - 5, boxPosition.Y + boxSize.Y - hp * boxSize.Y)
-                        esp.health.Color       = ESP_SETTINGS.HealthLowColor:Lerp(ESP_SETTINGS.HealthHighColor, hp)
+                        esp.healthOutline.From    = Vector2.new(boxPosition.X - 6, boxPosition.Y + boxSize.Y)
+                        esp.healthOutline.To      = Vector2.new(boxPosition.X - 6, boxPosition.Y)
+                        esp.health.From           = Vector2.new(boxPosition.X - 5, boxPosition.Y + boxSize.Y)
+                        esp.health.To             = Vector2.new(boxPosition.X - 5, boxPosition.Y + boxSize.Y - hp * boxSize.Y)
+                        esp.health.Color          = ESP_SETTINGS.HealthLowColor:Lerp(ESP_SETTINGS.HealthHighColor, hp)
                         esp.healthOutline.Visible = true
-                        esp.health.Visible = true
+                        esp.health.Visible        = true
                     else
                         esp.healthOutline.Visible = false
-                        esp.health.Visible = false
+                        esp.health.Visible        = false
                     end
 
                     -- Distance
                     if ESP_SETTINGS.ShowDistance then
                         local dist = (camera.CFrame.p - rootPart.Position).Magnitude
-                        esp.distance.Text = string.format("%.1f studs", dist)
+                        esp.distance.Text     = string.format("%.1f studs", dist)
                         esp.distance.Position = Vector2.new(boxPosition.X + boxSize.X / 2, boxPosition.Y + boxSize.Y + 5)
-                        esp.distance.Visible = true
+                        esp.distance.Visible  = true
                     else
                         esp.distance.Visible = false
                     end
@@ -709,7 +699,7 @@ local function updateEsp()
                         if #esp.skeletonlines == 0 then
                             for _, bonePair in ipairs(bones) do
                                 local p, c = bonePair[1], bonePair[2]
-                                if character[p] and character[c] then
+                                if character:FindFirstChild(p) and character:FindFirstChild(c) then
                                     local sl = create("Line", {
                                         Thickness = 1,
                                         Color = ESP_SETTINGS.SkeletonsColor,
@@ -721,22 +711,21 @@ local function updateEsp()
                         end
                         for _, lineData in ipairs(esp.skeletonlines) do
                             local sl, p, c = lineData[1], lineData[2], lineData[3]
-                            if character[p] and character[c] then
-                                local pp = camera:WorldToViewportPoint(character[p].Position)
-                                local cp = camera:WorldToViewportPoint(character[c].Position)
-                                sl.From = Vector2.new(pp.X, pp.Y)
-                                sl.To   = Vector2.new(cp.X, cp.Y)
-                                sl.Color = ESP_SETTINGS.SkeletonsColor
+                            local partP = character:FindFirstChild(p)
+                            local partC = character:FindFirstChild(c)
+                            if partP and partC then
+                                local pp2D = camera:WorldToViewportPoint(partP.Position)
+                                local cp2D = camera:WorldToViewportPoint(partC.Position)
+                                sl.From    = Vector2.new(pp2D.X, pp2D.Y)
+                                sl.To      = Vector2.new(cp2D.X, cp2D.Y)
+                                sl.Color   = ESP_SETTINGS.SkeletonsColor
                                 sl.Visible = true
                             else
-                                sl:Remove()
+                                sl.Visible = false
                             end
                         end
                     else
-                        for _, lineData in ipairs(esp.skeletonlines) do
-                            lineData[1]:Remove()
-                        end
-                        esp.skeletonlines = {}
+                        resetSkeletonLines(esp)
                     end
 
                     -- Tracer
@@ -749,9 +738,9 @@ local function updateEsp()
                         else
                             tracerY = camera.ViewportSize.Y
                         end
-                        esp.tracer.Color = activeTracerColor
-                        esp.tracer.From  = Vector2.new(camera.ViewportSize.X / 2, tracerY)
-                        esp.tracer.To    = Vector2.new(hrp2D.X, hrp2D.Y)
+                        esp.tracer.Color   = activeTracerColor
+                        esp.tracer.From    = Vector2.new(camera.ViewportSize.X / 2, tracerY)
+                        esp.tracer.To      = Vector2.new(hrp2D.X, hrp2D.Y)
                         esp.tracer.Visible = true
                     else
                         esp.tracer.Visible = false
@@ -761,19 +750,18 @@ local function updateEsp()
                     if ESP_SETTINGS.ShowCustomImage and esp.espImage then
                         local imgW = boxSize.X * ESP_SETTINGS.CustomImageSizeRatio.X
                         local imgH = boxSize.Y * ESP_SETTINGS.CustomImageSizeRatio.Y
-                        esp.espImage.Size = Vector2.new(imgW, imgH)
+                        esp.espImage.Size     = Vector2.new(imgW, imgH)
                         esp.espImage.Position = Vector2.new(
                             boxPosition.X + (boxSize.X - imgW) / 2,
                             boxPosition.Y + (boxSize.Y - imgH) / 2
                         )
                         esp.espImage.Transparency = ESP_SETTINGS.CustomImageTransparency
-                        esp.espImage.Visible = true
+                        esp.espImage.Visible      = true
                     elseif esp.espImage then
                         esp.espImage.Visible = false
                     end
 
                 else
-                    -- Off screen
                     hideAll(esp)
                 end
             else
@@ -791,17 +779,35 @@ local function updateEsp()
 end
 
 -- ─────────────────────────────────────────────────────────────
+--// Player hooks helper
+-- ─────────────────────────────────────────────────────────────
+local function hookPlayer(player)
+    createEsp(player)
+    player.CharacterAdded:Connect(function()
+        local esp = cache[player]
+        if esp then
+            resetSkeletonLines(esp)
+            -- reset box lines too so they rebuild cleanly for new character
+            for _, line in ipairs(esp.boxLines or {}) do
+                pcall(function() line:Remove() end)
+            end
+            esp.boxLines = {}
+        end
+    end)
+end
+
+-- ─────────────────────────────────────────────────────────────
 --// Init existing players
 -- ─────────────────────────────────────────────────────────────
 for _, player in ipairs(Players:GetPlayers()) do
     if player ~= localPlayer then
-        createEsp(player)
+        hookPlayer(player)
     end
 end
 
 Players.PlayerAdded:Connect(function(player)
     if player ~= localPlayer then
-        createEsp(player)
+        hookPlayer(player)
     end
 end)
 
