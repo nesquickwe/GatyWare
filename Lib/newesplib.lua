@@ -160,6 +160,24 @@ local function isPlayerBehindWall(player)
 end
 
 -- ─────────────────────────────────────────────────────────────
+--// Folder Setup
+-- ─────────────────────────────────────────────────────────────
+local function initFolders()
+    local folders = {
+        "GatyWare",
+        "GatyWare/CustomImages",
+        "GatyWare/CustomCursor",
+    }
+    for _, path in ipairs(folders) do
+        if not isfolder(path) then
+            makefolder(path)
+        end
+    end
+end
+
+initFolders()
+
+-- ─────────────────────────────────────────────────────────────
 --// Image / Cursor loading helpers
 -- Executors expose `readfile` for reading from workspace folder
 -- ─────────────────────────────────────────────────────────────
