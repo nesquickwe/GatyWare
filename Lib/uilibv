@@ -1,0 +1,532 @@
+--[[
+    DarkLib v1.0
+    A lightweight Roblox UI library with a dark monochrome theme.
+    
+    Usage:
+        local DarkLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/DarkLib.lua"))()
+        local window  = DarkLib:Window("My Script")
+        local section = window:Section("Tycoon")
+        section:Row("Status", "Running", "green")
+        section:Divider()
+        section:Button("Disable", function() print("clicked") end)
+        section:Toggle("Auto Farm", false, function(v) print(v) end)
+        section:CPBar(22)   -- progress bar (max)
+
+    Color keys: "green" | "red" | "yellow" | "blue" | "purple" | "grey" | "white"
+--]]
+
+local DarkLib = {}
+DarkLib.__index = DarkLib
+
+-- ================================================================
+-- THEME
+-- ================================================================
+
+local T = {
+    DARK        = Color3.fromRGB(18,  18,  18),
+    DARK2       = Color3.fromRGB(28,  28,  28),
+    DARK3       = Color3.fromRGB(38,  38,  38),
+    WHITE       = Color3.fromRGB(255, 255, 255),
+    GREY        = Color3.fromRGB(136, 136, 136),
+
+    -- text accent palette
+    green       = Color3.fromRGB(80,  220, 100),
+    red         = Color3.fromRGB(220, 70,  70),
+    yellow      = Color3.fromRGB(220, 180, 50),
+    blue        = Color3.fromRGB(90,  180, 255),
+    purple      = Color3.fromRGB(200, 100, 255),
+    grey        = Color3.fromRGB(136, 136, 136),
+    white       = Color3.fromRGB(255, 255, 255),
+
+    FONT        = Enum.Font.Gotham,
+    FONT_BOLD   = Enum.Font.GothamBold,
+    CORNER      = UDim.new(0, 6),
+    CORNER_SM   = UDim.new(0, 4),
+}
+
+-- ================================================================
+-- INTERNAL HELPERS
+-- ================================================================
+
+local function makeCorner(parent, radius)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = radius or T.CORNER
+    c.Parent = parent
+    return c
+end
+
+local function makeStroke(parent, color, thickness)
+    local s = Instance.new("UIStroke")
+    s.Color     = color     or T.DARK3
+    s.Thickness = thickness or 1
+    s.Parent    = parent
+    return s
+end
+
+local function makeLabel(parent, text, size, color, bold, xAlign)
+    local l = Instance.new("TextLabel")
+    l.BackgroundTransparency = 1
+    l.Text           = text   or ""
+    l.TextSize       = size   or 11
+    l.TextColor3     = color  or T.WHITE
+    l.Font           = bold and T.FONT_BOLD or T.FONT
+    l.TextXAlignment = xAlign or Enum.TextXAlignment.Left
+    l.TextTruncate   = Enum.TextTruncate.AtEnd
+    l.Parent         = parent
+    return l
+end
+
+local function resolveColor(key)
+    return T[key] or T.white
+end
+
+-- ================================================================
+-- SECTION OBJECT
+-- ================================================================
+
+local Section = {}
+Section.__index = Section
+
+function Section.new(parent, yOffset, windowRef)
+    local self = setmetatable({}, Section)
+    self._parent  = parent
+    self._y       = yOffset
+    self._window  = windowRef
+    self._rows    = {}
+    return self
+end
+
+-- internal: add a widget frame and grow the window
+function Section:_addFrame(height, extraGap)
+    local gap = extraGap or 2
+    local f   = Instance.new("Frame")
+    f.Size             = UDim2.new(1, -24, 0, height)
+    f.Position         = UDim2.new(0, 12, 0, self._y)
+    f.BackgroundTransparency = 1
+    f.Parent           = self._parent
+
+    self._y += height + gap
+    -- grow the outer panel
+    self._window._frame.Size = UDim2.new(
+        0, self._window._width,
+        0, self._window._baseHeight + self._y
+    )
+    return f
+end
+
+--- Add a key/value data row.
+-- @param label string   Left-side label (grey)
+-- @param value string   Right-side value
+-- @param color string?  Color key for value text
+-- @return TextLabel      The value label so you can update .Text later
+function Section:Row(label, value, color)
+    local f = self:_addFrame(20, 2)
+
+    local lbl = makeLabel(f, label, 11, T.GREY)
+    lbl.Size     = UDim2.new(0, 82, 1, 0)
+
+    local val = makeLabel(f, value or "", 11, resolveColor(color or "white"))
+    val.Size     = UDim2.new(1, -84, 1, 0)
+    val.Position = UDim2.new(0, 84, 0, 0)
+
+    table.insert(self._rows, {label = lbl, value = val})
+    return val
+end
+
+--- Add a horizontal divider line.
+function Section:Divider()
+    local f = self:_addFrame(1, 8)
+    f.BackgroundColor3    = T.DARK3
+    f.BackgroundTransparency = 0
+    f.Size = UDim2.new(1, -24, 0, 1)
+end
+
+--- Add a clickable button.
+-- @param text    string
+-- @param onClick function
+-- @param style   string?  "default"|"active"|"danger"  (default = "default")
+-- @return TextButton
+function Section:Button(text, onClick, style)
+    local f = self:_addFrame(30, 8)
+
+    local btn = Instance.new("TextButton")
+    btn.Size             = UDim2.new(1, 0, 1, 0)
+    btn.BorderSizePixel  = 0
+    btn.Text             = text or "Button"
+    btn.Font             = T.FONT_BOLD
+    btn.TextSize         = 12
+    btn.Parent           = f
+    makeCorner(btn, T.CORNER)
+    makeStroke(btn, T.DARK3, 1)
+
+    local function applyStyle(s)
+        if s == "active" then
+            btn.BackgroundColor3 = T.WHITE
+            btn.TextColor3       = Color3.fromRGB(17, 17, 17)
+        elseif s == "danger" then
+            btn.BackgroundColor3 = T.DARK2
+            btn.TextColor3       = T.red
+        else
+            btn.BackgroundColor3 = T.DARK2
+            btn.TextColor3       = T.WHITE
+        end
+    end
+
+    applyStyle(style or "default")
+
+    if onClick then
+        btn.MouseButton1Click:Connect(onClick)
+    end
+
+    -- expose a setStyle helper on the button instance
+    btn.SetStyle = applyStyle   -- note: raw function attach for convenience
+
+    return btn
+end
+
+--- Add a toggle button that flips between enabled/disabled.
+-- @param text      string
+-- @param initial   boolean
+-- @param onChange  function(newValue: boolean)
+-- @return { getValue, setValue }
+function Section:Toggle(text, initial, onChange)
+    local f = self:_addFrame(30, 8)
+
+    local btn = Instance.new("TextButton")
+    btn.Size            = UDim2.new(1, 0, 1, 0)
+    btn.BorderSizePixel = 0
+    btn.Font            = T.FONT_BOLD
+    btn.TextSize        = 12
+    btn.Parent          = f
+    makeCorner(btn, T.CORNER)
+    makeStroke(btn, T.DARK3, 1)
+
+    local state = initial ~= false   -- default true
+
+    local function refresh()
+        if state then
+            btn.BackgroundColor3 = T.DARK2
+            btn.TextColor3       = T.WHITE
+            btn.Text             = text .. "  [ON]"
+        else
+            btn.BackgroundColor3 = T.WHITE
+            btn.TextColor3       = Color3.fromRGB(17, 17, 17)
+            btn.Text             = text .. "  [OFF]"
+        end
+    end
+
+    refresh()
+
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        refresh()
+        if onChange then onChange(state) end
+    end)
+
+    return {
+        getValue = function() return state end,
+        setValue = function(v)
+            state = v
+            refresh()
+            if onChange then onChange(state) end
+        end,
+    }
+end
+
+--- Add a progress bar (e.g. for CP farmer).
+-- @param max     number   Total steps / waypoints
+-- @param label   string?  Label shown above bar (default "Progress")
+-- @return { set(current, max?) }   Call set() to update
+function Section:ProgressBar(max, label)
+    -- label row
+    local headerFrame = self:_addFrame(16, 2)
+    local lbl  = makeLabel(headerFrame, label or "Progress", 11, T.GREY)
+    lbl.Size   = UDim2.new(0, 100, 1, 0)
+    local pct  = makeLabel(headerFrame, "0 / " .. (max or "?"), 11, T.GREY)
+    pct.Size   = UDim2.new(1, -102, 1, 0)
+    pct.Position = UDim2.new(0, 102, 0, 0)
+    pct.TextXAlignment = Enum.TextXAlignment.Right
+
+    -- track
+    local trackFrame = self:_addFrame(6, 10)
+    local track = Instance.new("Frame")
+    track.Size             = UDim2.new(1, 0, 1, 0)
+    track.BackgroundColor3 = T.DARK3
+    track.BorderSizePixel  = 0
+    track.Parent           = trackFrame
+    makeCorner(track, UDim.new(0, 3))
+
+    local fill = Instance.new("Frame")
+    fill.Size             = UDim2.new(0, 0, 1, 0)
+    fill.BackgroundColor3 = T.WHITE
+    fill.BorderSizePixel  = 0
+    fill.Parent           = track
+    makeCorner(fill, UDim.new(0, 3))
+
+    local _max = max or 1
+
+    return {
+        set = function(current, newMax)
+            if newMax then _max = newMax end
+            local ratio = math.clamp(current / _max, 0, 1)
+            fill.Size   = UDim2.new(ratio, 0, 1, 0)
+            pct.Text    = current .. " / " .. _max
+            -- color shifts green when done
+            if ratio >= 1 then
+                fill.BackgroundColor3 = T.green
+                pct.TextColor3        = T.green
+            elseif ratio > 0 then
+                fill.BackgroundColor3 = T.WHITE
+                pct.TextColor3        = T.white
+            else
+                fill.BackgroundColor3 = T.DARK3
+                pct.TextColor3        = T.GREY
+            end
+        end,
+    }
+end
+
+--- Add a simple text label (e.g. a section header inside the body).
+-- @param text  string
+-- @param color string?
+function Section:Label(text, color)
+    local f = self:_addFrame(16, 4)
+    local l = makeLabel(f, text, 11, resolveColor(color or "grey"))
+    l.Size = UDim2.new(1, 0, 1, 0)
+    return l
+end
+
+--- Spacer — just adds vertical gap.
+-- @param height number?  (default 6)
+function Section:Spacer(height)
+    self:_addFrame(height or 6, 0)
+end
+
+-- ================================================================
+-- WINDOW OBJECT
+-- ================================================================
+
+local Window = {}
+Window.__index = Window
+
+--- Create a new draggable GUI window.
+-- @param title   string
+-- @param options table?  { width=260, parent=PlayerGui }
+function DarkLib:Window(title, options)
+    local self       = setmetatable({}, Window)
+    options          = options or {}
+    self._width      = options.width or 260
+    self._baseHeight = 38   -- topbar
+    self._sections   = {}
+
+    local Players   = game:GetService("Players")
+    local player    = Players.LocalPlayer
+    local parentGui = options.parent or player:WaitForChild("PlayerGui")
+
+    -- ScreenGui
+    local sg = Instance.new("ScreenGui")
+    sg.Name           = "DarkLib_" .. title:gsub("%s","_")
+    sg.ResetOnSpawn   = false
+    sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    sg.Parent         = parentGui
+    self._sg          = sg
+
+    -- Main frame
+    local frame = Instance.new("Frame")
+    frame.Name             = "Main"
+    frame.Size             = UDim2.new(0, self._width, 0, self._baseHeight)
+    frame.Position         = options.position or UDim2.new(0.5, -(self._width / 2), 0.02, 0)
+    frame.BackgroundColor3 = T.DARK
+    frame.BorderSizePixel  = 0
+    frame.Active           = true
+    frame.Draggable        = true
+    frame.Parent           = sg
+    makeCorner(frame, UDim.new(0, 8))
+    makeStroke(frame, T.DARK3, 1)
+    self._frame = frame
+
+    -- Top bar
+    local topBar = Instance.new("Frame")
+    topBar.Size             = UDim2.new(1, 0, 0, 38)
+    topBar.BackgroundColor3 = T.DARK2
+    topBar.BorderSizePixel  = 0
+    topBar.Parent           = frame
+    makeCorner(topBar, UDim.new(0, 8))
+
+    -- fix bottom corners of topbar (square them off)
+    local fix = Instance.new("Frame")
+    fix.Size             = UDim2.new(1, 0, 0.5, 0)
+    fix.Position         = UDim2.new(0, 0, 0.5, 0)
+    fix.BackgroundColor3 = T.DARK2
+    fix.BorderSizePixel  = 0
+    fix.Parent           = topBar
+
+    -- bottom border line under topbar
+    local div = Instance.new("Frame")
+    div.Size             = UDim2.new(1, 0, 0, 1)
+    div.Position         = UDim2.new(0, 0, 1, 0)
+    div.BackgroundColor3 = T.DARK3
+    div.BorderSizePixel  = 0
+    div.Parent           = topBar
+
+    -- Title label
+    local titleLbl = makeLabel(topBar, title, 13, T.WHITE, true)
+    titleLbl.Size     = UDim2.new(1, -50, 1, 0)
+    titleLbl.Position = UDim2.new(0, 12, 0, 0)
+
+    -- Close button
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Size             = UDim2.new(0, 24, 0, 24)
+    closeBtn.Position         = UDim2.new(1, -30, 0.5, -12)
+    closeBtn.BackgroundColor3 = T.DARK3
+    closeBtn.Text             = "×"
+    closeBtn.TextColor3       = T.GREY
+    closeBtn.Font             = T.FONT_BOLD
+    closeBtn.TextSize         = 14
+    closeBtn.BorderSizePixel  = 0
+    closeBtn.Parent           = topBar
+    makeCorner(closeBtn, T.CORNER_SM)
+
+    closeBtn.MouseButton1Click:Connect(function()
+        sg:Destroy()
+    end)
+
+    -- minimize on title double-click (hide body, shrink to topbar)
+    local minimized = false
+    local lastClick = 0
+    topBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            local now = tick()
+            if now - lastClick < 0.35 then
+                minimized = not minimized
+                -- hide everything below topbar
+                for _, child in ipairs(frame:GetChildren()) do
+                    if child ~= topBar and child:IsA("GuiObject") then
+                        child.Visible = not minimized
+                    end
+                end
+                if minimized then
+                    frame.Size = UDim2.new(0, self._width, 0, 38)
+                else
+                    -- restore full height (recalculated from sections)
+                    local maxY = 0
+                    for _, sec in ipairs(self._sections) do
+                        maxY = math.max(maxY, sec._y)
+                    end
+                    frame.Size = UDim2.new(0, self._width, 0, self._baseHeight + maxY)
+                end
+                lastClick = 0
+            else
+                lastClick = now
+            end
+        end
+    end)
+
+    -- idle-prevention (standard exploit pattern)
+    if getconnections then
+        local player2 = game:GetService("Players").LocalPlayer
+        for _, conn in pairs(getconnections(player2.Idled)) do
+            if conn["Disable"] then conn["Disable"](conn)
+            elseif conn["Disconnect"] then conn["Disconnect"](conn) end
+        end
+    else
+        game:GetService("Players").LocalPlayer.Idled:Connect(function()
+            game:GetService("VirtualUser"):CaptureController()
+            game:GetService("VirtualUser"):ClickButton2(Vector2.new())
+        end)
+    end
+
+    return self
+end
+
+--- Create a new section (group of widgets) inside this window.
+-- @param headerText string?  Optional visible section title
+-- @return Section
+function Window:Section(headerText)
+    -- calculate current y offset from previous sections
+    local yStart = 0
+    for _, sec in ipairs(self._sections) do
+        yStart = math.max(yStart, sec._y)
+    end
+
+    local sec = Section.new(self._frame, self._baseHeight + yStart, self)
+
+    if headerText then
+        sec:Spacer(8)
+        local hf = sec:_addFrame(14, 4)
+        local hl = makeLabel(hf, headerText:upper(), 10, T.GREY, true)
+        hl.Size          = UDim2.new(1, 0, 1, 0)
+        hl.TextColor3    = T.GREY
+    end
+
+    table.insert(self._sections, sec)
+    return sec
+end
+
+--- Destroy the entire GUI.
+function Window:Destroy()
+    if self._sg then self._sg:Destroy() end
+end
+
+--- Show a temporary toast notification.
+-- @param title   string
+-- @param body    string
+-- @param color   string?  Color key
+-- @param duration number? Seconds (default 4)
+function DarkLib:Notify(title, body, color, duration)
+    local Players = game:GetService("Players")
+    local player  = Players.LocalPlayer
+    local sg = player.PlayerGui:FindFirstChild("DarkLib_Notify")
+    if not sg then
+        sg = Instance.new("ScreenGui")
+        sg.Name         = "DarkLib_Notify"
+        sg.ResetOnSpawn = false
+        sg.Parent       = player.PlayerGui
+    end
+
+    local accentColor = resolveColor(color or "white")
+    local dur         = duration or 4
+
+    local toast = Instance.new("Frame")
+    toast.Size             = UDim2.new(0, 240, 0, 56)
+    toast.Position         = UDim2.new(1, -256, 1, -72)
+    toast.BackgroundColor3 = T.DARK2
+    toast.BorderSizePixel  = 0
+    toast.Parent           = sg
+    makeCorner(toast, UDim.new(0, 7))
+    makeStroke(toast, T.DARK3, 1)
+
+    -- accent line on left
+    local accent = Instance.new("Frame")
+    accent.Size             = UDim2.new(0, 3, 1, -12)
+    accent.Position         = UDim2.new(0, 0, 0, 6)
+    accent.BackgroundColor3 = accentColor
+    accent.BorderSizePixel  = 0
+    accent.Parent           = toast
+    makeCorner(accent, UDim.new(0, 2))
+
+    local titleLbl = makeLabel(toast, title, 12, T.WHITE, true)
+    titleLbl.Size     = UDim2.new(1, -24, 0, 18)
+    titleLbl.Position = UDim2.new(0, 14, 0, 8)
+
+    local bodyLbl = makeLabel(toast, body or "", 11, T.GREY)
+    bodyLbl.Size     = UDim2.new(1, -24, 0, 18)
+    bodyLbl.Position = UDim2.new(0, 14, 0, 28)
+    bodyLbl.TextTruncate = Enum.TextTruncate.AtEnd
+
+    -- slide in then out
+    toast.Position = UDim2.new(1, 8, 1, -72)
+    local TweenService = game:GetService("TweenService")
+    local ti = TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+    TweenService:Create(toast, ti, { Position = UDim2.new(1, -256, 1, -72) }):Play()
+
+    task.delay(dur, function()
+        if toast and toast.Parent then
+            local tw = TweenService:Create(toast, ti, { Position = UDim2.new(1, 8, 1, -72) })
+            tw:Play()
+            tw.Completed:Wait()
+            toast:Destroy()
+        end
+    end)
+end
+return DarkLib
