@@ -1,12 +1,12 @@
--- Fov
+
 local FOV_Circle = Drawing.new("Circle")
--- Fov setins
-FOV_Circle.Color = Color3.fromRGB(255, 255, 255) -- White color
-FOV_Circle.Transparency = 1 -- Fully visible
-FOV_Circle.Radius = 45 -- Adjust size for FOV (45 degrees)
-FOV_Circle.NumSides = 100 -- Smooth circle edges
-FOV_Circle.Thickness = 1.5 -- Circle border thickness
-FOV_Circle.Filled = false -- Ensure it's a circle outline
+
+FOV_Circle.Color = Color3.fromRGB(255, 255, 255) 
+FOV_Circle.Transparency = 1 
+FOV_Circle.Radius = 45 
+FOV_Circle.NumSides = 100
+FOV_Circle.Thickness = 1.5 
+FOV_Circle.Filled = false 
 FOV_Circle.Position = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2,
                                   workspace.CurrentCamera.ViewportSize.Y / 2)
 
@@ -14,7 +14,7 @@ FOV_Circle.Position = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2,
 game:GetService("RunService").RenderStepped:Connect(function()
     local camera = workspace.CurrentCamera
     FOV_Circle.Position = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-    FOV_Circle.Visible = true -- Always ensure it's visible
+    FOV_Circle.Visible = true 
 end)
 
 
@@ -87,10 +87,6 @@ local infiniteJumpEnabled = true
 local Configuration = {
 	TeamCheck = true,
 }
-
---// ========================================
---// GatyWare Animated UI Logo
---// ========================================
 if CoreGui:FindFirstChild("GatyWareUI") then 
     CoreGui.GatyWareUI:Destroy() 
 end
@@ -140,8 +136,6 @@ local stroke = Instance.new("UIStroke")
 stroke.Thickness = 2
 stroke.Color = Color3.fromRGB(200,0,255)
 stroke.Parent = text
-
--- Animate gradient rotation
 task.spawn(function()
 	while true do
 		for i = 0,360,1 do
@@ -151,7 +145,6 @@ task.spawn(function()
 	end
 end)
 
--- Animate shine sweep
 task.spawn(function()
 	while true do
 		shine.Offset = Vector2.new(-1,0)
